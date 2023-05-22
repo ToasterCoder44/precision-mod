@@ -1,0 +1,16 @@
+{
+	"geode": "1.0.0-beta.17",
+	"version": "v1.0.0-alpha.1",
+	"id": "toastercoder.precision-mod",
+	"name": "precision-mod",
+	"developer": "ToasterCoder",
+	"description": "",
+	"settings": {
+		"hitbox-border-width": {
+			"name": "Hitbox border width",
+			"type": "float",
+			"default": 1,
+			"min": 0
+		}
+	}
+}
