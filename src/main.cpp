@@ -1,12 +1,15 @@
 #include <Geode/Geode.hpp>
 #include <Geode/modify/PlayLayer.hpp>
 
+#include <math.h>
+
 using namespace geode::prelude;
 
 float hitboxBorderWidth = 1.f;
 ccColor4F hazardHitboxColor = {1.f, 0.f, 0.f, 1.f};
 ccColor4F primaryHitboxColor = {0.f, 0.f, 1.f, 1.f};
 ccColor4F extraHitboxColor = {1.f, 1.f, 0.f, 1.f};
+ccColor4F playerHitboxColor = {0.f, 1.f, 0.f, 1.f};
 
 class HitboxNode : public CCDrawNode {
 public:
@@ -30,7 +33,7 @@ public:
 				color = hazardHitboxColor;
 				break;
 			case GameObjectType::Slope:
-				break; //tba
+				return; //tba
 			case GameObjectType::InverseGravityPortal:
 			case GameObjectType::YellowJumpPad:
 			case GameObjectType::YellowJumpRing:
@@ -68,26 +71,45 @@ public:
 				return;
 		}
 
-		if (object->getObjectRadius() > 0) {
+		float radius = object->getObjectRadius();
+		if (radius > 0) {
 			auto pos = object->getPosition();
-			this->drawCircularHitbox(pos, object->getObjectRadius(), color);
+			this->drawHitboxFromCircle(pos, radius, color);
 			return;
 		}
-		auto rect = object->getObjectRect();
-		this->drawRectangularHitbox(rect, color);
+
+		auto OBB2D = object->m_objectOBB2D;
+		if (OBB2D) {
+			this->drawHitboxFromOBB2D(OBB2D, color);
+			return;
+		}
+
+		this->drawHitboxFromRect(object->getObjectRect(), color);
 	}
 
 	void drawPlayerHitbox(PlayerObject *player) {
-		auto rect = player->getObjectRect();
-		this->drawRectangularHitbox(rect, extraHitboxColor);
+		float radius = player->getObjectRadius();
+		if (radius > 0) { // temporary
+			auto pos = player->getPosition();
+			this->drawHitboxFromCircle(pos, radius, playerHitboxColor);
+			return;
+		}
+		
+		auto OBB2D = player->m_objectOBB2D;
+		if (OBB2D) {
+			this->drawHitboxFromOBB2D(OBB2D, playerHitboxColor);
+		}
+
+		this->drawHitboxFromRect(player->getObjectRect(), playerHitboxColor);
+		this->drawHitboxFromRect(player->getObjectRect(.25f, .25f), playerHitboxColor);
 	}
 
-	void drawRectangularHitbox(const CCRect &rect, const ccColor4F &color) {
+	void drawHitboxFromRect(const CCRect &rect, const ccColor4F &color) {
 		float offset = hitboxBorderWidth; //temporary
-		float minX = rect.getMinX() + offset;
-		float minY = rect.getMinY() + offset;
-		float maxX = rect.getMaxX() - offset;
-		float maxY = rect.getMaxY() - offset;
+		float minX = rect.getMinX(); //+ offset;
+		float minY = rect.getMinY(); //+ offset;
+		float maxX = rect.getMaxX(); //- offset;
+		float maxY = rect.getMaxY(); //- offset;
 		CCPoint points[] = {
 			{minX, minY},
 			{maxX, minY},
@@ -97,8 +119,24 @@ public:
 		this->drawPolygon(points, 4, {0.f, 0.f, 0.f, 0.f}, hitboxBorderWidth, color);
 	}
 
-	void drawCircularHitbox(const CCPoint &center, float radius, const ccColor4F &color) {
-		this->drawDot(center, radius, color);
+	void drawHitboxFromOBB2D(OBB2D *OBB2D, const ccColor4F &color) {
+		CCPoint points[] = {
+			OBB2D->m_p1_1,
+			OBB2D->m_p1_2,
+			OBB2D->m_p1_3,
+			OBB2D->m_p1_4
+		};
+		this->drawPolygon(points, 4, {0.f, 0.f, 0.f, 0.f}, hitboxBorderWidth, color);
+	}
+
+	void drawHitboxFromCircle(const CCPoint &center, float radius, const ccColor4F &color) {
+		// temporary
+		constexpr size_t N = 32;
+		CCPoint points[N];
+		for (size_t i = 0; i < N; i++) {
+			points[i] = center + CCPoint(std::cos(2 * M_PI * i / N), std::sin(2 * M_PI * i / N)) * radius;
+		}
+		this->drawPolygon(points, N, {0.f, 0.f, 0.f, 0.f}, hitboxBorderWidth, color);
 	}
 };
 
@@ -136,6 +174,8 @@ class $modify(PlayLayer) {
 		}
 
 		hitboxNode->drawPlayerHitbox(this->m_player1);
-		
+		if (this->m_isDualMode) {
+			hitboxNode->drawPlayerHitbox(this->m_player2);
+		}
 	}
 };
