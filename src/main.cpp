@@ -24,6 +24,9 @@ public:
 	}
 
 	void drawObjectHitbox(GameObject *object) {
+		if (!object->m_active) 
+			return;
+
 		ccColor4F color;
 		switch (object->getType()) {
 			case GameObjectType::Solid:
